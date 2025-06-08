@@ -10,7 +10,7 @@ class HandwrittenMathSolver:
         # 如果未提供模型路径，使用默认路径
         if model_path is None:
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(script_dir, 'calculator', 'model')
+            model_path = os.path.join(script_dir, 'calculator', 'model.keras')
         
         # 初始化识别器
         self.recognizer = HandwrittenEquationCalculator(model_path)

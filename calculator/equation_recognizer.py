@@ -1,19 +1,23 @@
 import cv2
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.preprocessing import image
 import matplotlib.pyplot as plt
 import os
+from tensorflow.keras.utils import img_to_array
 
-# 基本的类别名称，可以根据训练数据进行修改
-CLASS_NAMES = ['+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '=', 'div', 'times', 'y']
+# 数字和四则运算符类别
+CLASS_NAMES = ['+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '=', 'div', 'times']
 
 def binarize(img):
-    """将图像二值化，增强图像特征"""
-    img = image.img_to_array(img, dtype='uint8')
-    binarized = np.expand_dims(cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,11,2), -1)
+    """将图像二值化，增强图像特征，兼容灰度和RGB输入"""
+    arr = img_to_array(img, dtype='uint8')
+    if arr.ndim == 3 and arr.shape[-1] == 3:
+        arr = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+    elif arr.ndim == 3 and arr.shape[-1] == 1:
+        arr = arr[..., 0]
+    binarized = cv2.adaptiveThreshold(arr, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
     inverted_binary_img = ~binarized
-    return inverted_binary_img
+    return np.expand_dims(inverted_binary_img, -1)
 
 def getOverlap(a, b):
     """计算两个区间的重叠度"""
@@ -30,9 +34,11 @@ def detect_contours(img_path):
     inverted_binary_img = ~binarized
 
     # 检测轮廓
-    contours_list, hierarchy = cv2.findContours(inverted_binary_img,
-                                       cv2.RETR_TREE,
-                                       cv2.CHAIN_APPROX_SIMPLE)
+    contours_list, hierarchy = cv2.findContours(
+        inverted_binary_img,
+        cv2.RETR_TREE,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
     
     # 获取边界框
     l = []
@@ -106,30 +112,6 @@ def resize_pad(img, size, padColor=255):
 
     return scaled_img
 
-def put_double_asterisk(s):
-    """在字母后面的数字前添加双星号，表示指数运算"""
-    lst = list(s)
-    i = 0
-    while i < len(lst)-1:
-        if lst[i].isalpha():
-            if lst[i+1].isdigit():
-                lst.insert(i+1, '**')
-                i += 1
-        i += 1
-    s_new = ''.join(lst)
-    return s_new
-
-def put_single_asterisk(s):
-    """在数字后面的字母前添加星号，表示乘法运算"""
-    lst = list(s)
-    i = 0
-    while i < len(lst)-1:
-        if lst[i].isdigit() and lst[i+1].isalpha():
-            lst.insert(i+1, '*')
-        i += 1
-    s_new = ''.join(lst)
-    return s_new
-
 class HandwrittenEquationCalculator:
     def __init__(self, model_path='model'):
         """初始化手写算式识别计算器"""
@@ -150,46 +132,43 @@ class HandwrittenEquationCalculator:
     def recognize_equation(self, img_path):
         """识别图像中的算式"""
         print(f"正在识别图像: {os.path.basename(img_path)}")
-        
         # 检测图像中的轮廓
         contours = detect_contours(img_path)
-        
         # 从图像中读取数据
         input_image = cv2.imread(img_path, 0)
-        inverted_binary_img = binarize(input_image)
-        
-        # 预测每个轮廓中的符号
+        # 增加反色处理，变成白底黑字
+        input_image = 255 - input_image
         eqn_list = []
-        for (x, y, w, h) in sorted(contours, key=lambda x: x[0]):
-            # 提取ROI并调整大小
-            img = resize_pad(inverted_binary_img[y:y+h, x:x+w], (45, 45), 0)
-            
-            # 准备进行预测
-            first = tf.expand_dims(img, 0)
-            second = tf.expand_dims(first, -1)
-            predicted = self.model.predict(second, verbose=0)
+        debug_dir = 'debug_split'
+        os.makedirs(debug_dir, exist_ok=True)
+        for idx, (x, y, w, h) in enumerate(sorted(contours, key=lambda x: x[0])):
+            # 先分割和resize
+            roi = resize_pad(input_image[y:y+h, x:x+w], (45, 45), 0)
+            # 再二值化
+            roi_bin = binarize(roi)
+            # 断言shape为(45,45,1)
+            if roi_bin.ndim == 2:
+                roi_bin = np.expand_dims(roi_bin, -1)
+            assert roi_bin.shape == (45, 45, 1), f"输入shape错误: {roi_bin.shape}"
+            # 保存送入模型的图片（强制二值化保存）
+            img_to_save = roi_bin.squeeze()
+            img_to_save = (img_to_save > 127).astype(np.uint8) * 255
+            roi_save_path = os.path.join(debug_dir, f'roi_input_{idx}_x{x}_y{y}_w{w}_h{h}.png')
+            cv2.imwrite(roi_save_path, img_to_save)
+            # 预测
+            first = tf.expand_dims(roi_bin, 0)
+            predicted = self.model.predict(first, verbose=0)
             max_arg = np.argmax(predicted)
-            
-            # 获取预测的类别
             pred_class = self.class_names[max_arg]
-            
-            # 符号转换
             if pred_class == "times":
                 pred_class = "*"
             if pred_class == "div":
                 pred_class = "/"
-                
             eqn_list.append(pred_class)
-        
-        # 构建算式
+            print(f"分割轮廓{idx}: 坐标=({x},{y},{w},{h}), 识别结果={pred_class}, 已保存: {roi_save_path}")
         eqn = "".join(eqn_list)
         print(f"识别的算式: {eqn}")
-        
-        # 格式化算式以便计算
-        equation = put_double_asterisk(eqn)
-        equation = put_single_asterisk(equation)
-        
-        return equation
+        return eqn
 
 def test_calculator(image_path):
     """测试手写算式识别功能"""

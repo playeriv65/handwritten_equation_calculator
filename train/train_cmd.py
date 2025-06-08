@@ -57,10 +57,14 @@ def main():
         )
         
         # 保存模型到指定目录
-        os.makedirs(args.output_dir, exist_ok=True)
-        model.save(args.output_dir)
+        # 自动添加 .keras 扩展名
+        save_path = args.output_dir
+        if not (save_path.endswith('.keras') or save_path.endswith('.h5')):
+            save_path += '.keras'
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        model.save(save_path)
         
-        print(f"模型训练完成，已保存到: {args.output_dir}")
+        print(f"模型训练完成，已保存到: {save_path}")
         print(f"模型可识别 {len(class_names)} 个类别: {', '.join(class_names)}")
         return 0
     

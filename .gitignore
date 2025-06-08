@@ -1,0 +1,7 @@
+dataset
+uploads
+model
+*.pyc
+__pycache__
+*.keras
+debug_split

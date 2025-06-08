@@ -48,7 +48,6 @@ handwritten_equation_calculator/
 - 数字：0-9
 - 运算符：+（加）, -（减）, *（乘）, /（除法）
 - 等号：=
-- 变量：y
 
 ## 快速开始
 

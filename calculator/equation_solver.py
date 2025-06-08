@@ -1,87 +1,34 @@
 import sympy as sym
-from sympy import symbols, sympify, solve, solveset
+from sympy import sympify
 
 def solve_equation(equation):
     """
-    求解数学方程
-    :param equation: 字符串表示的数学方程
-    :return: 方程的解
+    只支持数字四则运算和等式求值
+    :param equation: 字符串表示的数学算式
+    :return: 计算结果
     """
     try:
-        # 处理包含x变量的方程
-        if 'x' in equation and '=' in equation:
-            x = sym.symbols('x')
-            left, right = equation.split("=")
-            eq = left + '-' + right
-            result = sym.solve(eq, (x))
-            return result
-            
-        elif 'x' in equation and '=' not in equation:
-            x = sym.symbols('x')
-            result = sym.solveset(equation, x)
-            return result
+        # 只允许数字、+、-、*、/、= 号
+        allowed_chars = set('0123456789+-*/.= ')
+        if not set(equation).issubset(allowed_chars):
+            return "仅支持数字和四则运算"
         
-        # 处理包含y变量的方程
-        elif 'y' in equation and '=' in equation:
-            y = sym.symbols('y')
-            left, right = equation.split("=")
-            eq = left + '-' + right
-            result = sym.solve(eq, (y))
-            return result
-            
-        elif 'y' in equation and '=' not in equation:
-            y = sym.symbols('y')
-            result = sym.solveset(equation, y)
-            return result
-        
-        # 处理包含x和y变量的方程
-        elif 'x' in equation and 'y' in equation and '=' in equation:
-            x, y = sym.symbols('x,y')
-            left, right = equation.split("=")
-            eq = left + '-' + right
-            result = sym.solve(eq, (x, y))
-            return result
-        
-        # 处理三角函数方程
-        elif '=' in equation and ('sin' in equation or 'tan' in equation or 'cos' in equation):
-            if 'x' in equation and 'y' in equation:
-                x, y = symbols('x,y')
-                eq_sympy = sympify(equation)
-                result = solve((eq_sympy), (x, y))
-                return result
-            elif 'x' in equation:
-                x = symbols('x')
-                eq_sympy = sympify(equation)
-                result = solve((eq_sympy), x)
-                return result
-            elif 'y' in equation:
-                y = symbols('y')
-                eq_sympy = sympify(equation)
-                result = solve((eq_sympy), y)
-                return result
-
-        # 处理表达式求值
-        if "=" not in equation:
-            if 'sin' in equation or 'tan' in equation or 'cos' in equation:
-                eq = sympify(equation)
-                result = eq.evalf()
-                return result
-            
-            # 简化表达式
-            result = sym.simplify(equation)
-            return result
+        if '=' in equation:
+            left, right = equation.split('=')
+            try:
+                left_val = sympify(left)
+                right_val = sympify(right)
+                return bool(left_val == right_val)
+            except Exception as e:
+                return f"错误: 等式求值失败 ({str(e)})"
         else:
-            # 处理方程求解
-            left, right = equation.split("=")
-            result = sym.solve(left, right)
-
-            if len(result) == 0:
-                return "无解"
-            else:
+            try:
+                result = sympify(equation).evalf()
                 return result
-
+            except Exception as e:
+                return f"错误: 表达式求值失败 ({str(e)})"
     except Exception as e:
-        return f"错误: 方程预测或求解错误 ({str(e)})"
+        return f"错误: 求解失败 ({str(e)})"
 
 def format_result(result):
     """
@@ -89,34 +36,24 @@ def format_result(result):
     :param result: 计算结果
     :return: 格式化后的字符串
     """
-    if isinstance(result, list):
-        if len(result) == 0:
-            return "无解"
-        formatted = []
-        for sol in result:
-            if isinstance(sol, tuple):
-                formatted.append(f"({', '.join(str(val) for val in sol)})")
-            else:
-                formatted.append(str(sol))
-        return ", ".join(formatted)
-    else:
-        return str(result)
+    return str(result)
 
 def test_equation_solver():
     """测试方程求解器功能"""
     test_cases = [
         "2+3",
-        "x+5=10",
-        "x**2+2*x+1=0",
-        "y=2*x+3",
-        "sin(x)=0.5"
+        "8-5*2",
+        "6/2+1",
+        "3+4=7",
+        "10-2=8",
+        "2*3=7"
     ]
     
     for eq in test_cases:
-        print(f"方程: {eq}")
+        print(f"算式: {eq}")
         result = solve_equation(eq)
         formatted = format_result(result)
-        print(f"解: {formatted}\n")
+        print(f"结果: {formatted}\n")
 
 if __name__ == "__main__":
     test_equation_solver()
