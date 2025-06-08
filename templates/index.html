@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手写算式识别</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background-color: white;
+            border-bottom: 2px solid white;
+            position: relative;
+            top: 1px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .canvas-container {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        
+        #drawing-canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-clear {
+            background-color: #f44336;
+        }
+        
+        .btn-clear:hover {
+            background-color: #d32f2f;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+        
+        .error {
+            border-left-color: #f44336;
+        }
+        
+        #file-upload-form {
+            margin-top: 20px;
+        }
+        
+        #file-input {
+            margin-bottom: 15px;
+        }
+        
+        #preview {
+            max-width: 100%;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>手写算式识别与求解系统</h1>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="draw">手写</div>
+            <div class="tab" data-tab="upload">上传图片</div>
+        </div>
+        
+        <div class="tab-content active" id="draw-tab">
+            <div class="canvas-container">
+                <canvas id="drawing-canvas" width="700" height="200"></canvas>
+            </div>
+            
+            <div>
+                <button id="recognize-btn" class="btn">识别</button>
+                <button id="clear-btn" class="btn btn-clear">清除</button>
+            </div>
+            
+            <div id="canvas-result" class="result" style="display: none;">
+                <h3>识别结果：</h3>
+                <p><strong>算式：</strong> <span id="canvas-equation"></span></p>
+                <p><strong>计算结果：</strong> <span id="canvas-answer"></span></p>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="upload-tab">
+            <form id="file-upload-form">
+                <div class="form-group">
+                    <label for="file-input">选择图片文件：</label>
+                    <input type="file" id="file-input" accept="image/*">
+                </div>
+                
+                <img id="preview" alt="预览图">
+                
+                <div>
+                    <button id="upload-btn" class="btn" type="button">识别</button>
+                </div>
+            </form>
+            
+            <div id="upload-result" class="result" style="display: none;">
+                <h3>识别结果：</h3>
+                <p><strong>算式：</strong> <span id="upload-equation"></span></p>
+                <p><strong>计算结果：</strong> <span id="upload-answer"></span></p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 切换标签
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 切换标签激活状态
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 切换内容显示
+                const tabId = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // 绘图功能
+        const canvas = document.getElementById('drawing-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        
+        // 设置绘图样式
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'black';
+        
+        // 绘图事件处理
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // 触摸设备支持
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+        
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+        
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+        
+        function stopDrawing() {
+            if (isDrawing) {
+                ctx.stroke();
+                isDrawing = false;
+            }
+        }
+        
+        // 清除画布
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('canvas-result').style.display = 'none';
+        });
+        
+        // 识别手绘内容
+        document.getElementById('recognize-btn').addEventListener('click', function() {
+            // 将画布内容转换为base64
+            const imageData = canvas.toDataURL('image/png');
+            const base64Data = imageData.split(',')[1];
+            
+            // 调用API
+            fetch('/api/recognize-base64', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: base64Data
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('canvas-result');
+                
+                if (data.success) {
+                    resultDiv.classList.remove('error');
+                    document.getElementById('canvas-equation').textContent = data.equation;
+                    document.getElementById('canvas-answer').textContent = data.result;
+                } else {
+                    resultDiv.classList.add('error');
+                    document.getElementById('canvas-equation').textContent = '识别失败';
+                    document.getElementById('canvas-answer').textContent = data.error || '未知错误';
+                }
+                
+                resultDiv.style.display = 'block';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('canvas-result');
+                resultDiv.classList.add('error');
+                document.getElementById('canvas-equation').textContent = '请求失败';
+                document.getElementById('canvas-answer').textContent = error.message;
+                resultDiv.style.display = 'block';
+            });
+        });
+        
+        // 文件上传预览
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const preview = document.getElementById('preview');
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 上传图片识别
+        document.getElementById('upload-btn').addEventListener('click', function() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请先选择图片文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            fetch('/api/recognize', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('upload-result');
+                
+                if (data.success) {
+                    resultDiv.classList.remove('error');
+                    document.getElementById('upload-equation').textContent = data.equation;
+                    document.getElementById('upload-answer').textContent = data.result;
+                } else {
+                    resultDiv.classList.add('error');
+                    document.getElementById('upload-equation').textContent = '识别失败';
+                    document.getElementById('upload-answer').textContent = data.error || '未知错误';
+                }
+                
+                resultDiv.style.display = 'block';
+            })
+            .catch(error => {
+                const resultDiv = document.getElementById('upload-result');
+                resultDiv.classList.add('error');
+                document.getElementById('upload-equation').textContent = '请求失败';
+                document.getElementById('upload-answer').textContent = error.message;
+                resultDiv.style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html>
