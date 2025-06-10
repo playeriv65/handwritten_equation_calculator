@@ -38,7 +38,6 @@ handwritten_equation_calculator/
 ├── web_api.py                   # Web服务API
 ├── requirements.txt             # 项目依赖
 ├── USAGE.md                     # 详细使用说明
-├── demo.ipynb                   # 示例Jupyter笔记本
 └── README.md                    # 项目说明
 ```
 
