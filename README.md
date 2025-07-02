@@ -65,8 +65,10 @@ python train/prepare_data.py --input-dir raw_data --output-dir train/dataset
 ### 3. 训练模型
 
 ```bash
-python train/train_cmd.py --data-dir train/dataset --epochs 20
+python train/train_cmd.py --data-dir train/dataset --epochs 20 --batch-size 32
 ```
+
+训练完成后，命令行将输出验证集上的分类报告（per-class 精度/召回/F1）以及 Micro/Macro 平均指标。
 
 ### 4. 识别并求解手写算式
 
