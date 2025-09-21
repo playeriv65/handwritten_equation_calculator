@@ -147,12 +147,11 @@ class HandwrittenEquationCalculator:
         
         base_img_name = os.path.splitext(os.path.basename(img_path))[0]
         
-        # 首先检查图像是否存在
+        # 图像是否存在
         if not os.path.exists(img_path):
             print(f"错误: 图像路径不存在: {img_path}")
             return ""
-            
-        # 尝试读取图像，包括可能的透明通道
+        
         try:
             # 先尝试读取带透明通道的版本
             image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)

@@ -18,7 +18,7 @@ import argparse
 # 添加项目根目录到系统路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calculator.equation_recognizer import HandwrittenEquationCalculator
-from calculator.equation_solver import solve_equation, format_result
+from calculator.equation_solver import solve_equation
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -61,7 +61,7 @@ def process_equation(image_path):
         
         # 求解
         result = solve_equation(equation)
-        formatted_result = format_result(result)
+        formatted_result = str(result)
         
         return {
             'success': True,

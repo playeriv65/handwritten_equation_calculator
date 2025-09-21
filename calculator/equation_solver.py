@@ -8,7 +8,6 @@ def solve_equation(equation):
     :return: 计算结果
     """
     try:
-        # 只允许数字、+、-、*、/、= 号
         allowed_chars = set('0123456789+-*/.= ')
         if not set(equation).issubset(allowed_chars):
             return "仅支持数字和四则运算"
@@ -30,14 +29,6 @@ def solve_equation(equation):
     except Exception as e:
         return f"错误: 求解失败 ({str(e)})"
 
-def format_result(result):
-    """
-    格式化计算结果
-    :param result: 计算结果
-    :return: 格式化后的字符串
-    """
-    return str(result)
-
 def test_equation_solver():
     """测试方程求解器功能"""
     test_cases = [
@@ -52,7 +43,7 @@ def test_equation_solver():
     for eq in test_cases:
         print(f"算式: {eq}")
         result = solve_equation(eq)
-        formatted = format_result(result)
+        formatted = str(result)
         print(f"结果: {formatted}\n")
 
 if __name__ == "__main__":

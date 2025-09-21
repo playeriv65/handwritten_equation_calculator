@@ -3,4 +3,4 @@
 """
 
 from .equation_recognizer import HandwrittenEquationCalculator, test_calculator
-from .equation_solver import solve_equation, format_result
+from .equation_solver import solve_equation
